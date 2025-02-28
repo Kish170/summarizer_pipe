@@ -1,0 +1,13 @@
+{
+  "buildStatus": "success",
+  "crons": [
+    {
+      "path": "/api/pipeline",
+      "schedule": "0 0 11 * * *"
+    }
+  ],
+  "enabled": true,
+  "is_nextjs": true,
+  "port": 3000,
+  "source": "C:/Users/kisha/OneDrive/Documents/summarizer"
+}
