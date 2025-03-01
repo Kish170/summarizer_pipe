@@ -9,6 +9,8 @@ import { ClientOnly } from "@/lib/client-only";
 import { Inter } from "next/font/google";
 import healthStatusContent from '../content/health-status-card.json';
 import { useEffect, useState } from "react";
+import { AIEducationalNotes } from "@/components/ready-to-use-examples/ai-educational-notes";
+import NoteSettings from "@/components/ready-to-use-examples/note-settings";
 
 const inter = Inter({ 
   subsets: ['latin'],
@@ -48,11 +50,19 @@ export default function Page() {
     <SettingsProvider>
       <ClientOnly>
         <div className={`flex flex-col gap-6 items-center justify-center h-full mt-12 px-4 pb-12 ${inter.className}`}>
-          <h1 className="text-2xl font-bold mb-0">example app (pipe) for developers</h1>
-          <p className="text-gray-600 mb-2 -mt-5">ready-to-use components for engineers building apps with screenpipe</p>
-          {healthStatusContent.map((cardContent, index) => (
-            <PlaygroundCard key={index} content={cardContent} />
-          ))}
+          <h1 className="text-2xl font-bold mb-0">AI Educational Notes</h1>
+          <p className="text-gray-600 mb-2 -mt-5">Generate and manage educational notes using AI, screen capture, and audio transcription</p>
+          
+          <div className="w-full max-w-4xl">
+            <NoteSettings />
+          </div>
+
+          <div className="w-full max-w-4xl mt-8">
+            <h2 className="text-xl font-semibold mb-4">Other Components</h2>
+            {healthStatusContent.map((cardContent, index) => (
+              <PlaygroundCard key={index} content={cardContent} />
+            ))}
+          </div>
           
           <div className="w-full max-w-4xl mt-8 font-mono">
             <h2 className="text-xl font-semibold mb-4 text-left">open source pipes</h2>

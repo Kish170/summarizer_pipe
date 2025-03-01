@@ -8,6 +8,14 @@ export interface WorkLog {
   endTime: string;
 }
 
+export interface Note {
+  title: string;
+  content: string;
+  tags: string[];
+  startTime: string;
+  endTime: string;
+}
+
 export interface Contact {
   name: string;
   company?: string;
@@ -28,7 +36,6 @@ export interface Intelligence {
 export interface Settings {
   exampleSetting?: string;
   prompt: string;
-  vaultPath: string;
   logTimeWindow: number;
   logPageSize: number;
   logModel: string;

@@ -8,6 +8,6 @@
   ],
   "enabled": true,
   "is_nextjs": true,
-  "port": 3000,
+  "port": 8080,
   "source": "C:/Users/kisha/OneDrive/Documents/summarizer"
 }
