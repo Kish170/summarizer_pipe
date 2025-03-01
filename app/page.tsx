@@ -10,7 +10,7 @@ import { Inter } from "next/font/google";
 import healthStatusContent from '../content/health-status-card.json';
 import { useEffect, useState } from "react";
 import { AIEducationalNotes } from "@/components/ready-to-use-examples/ai-educational-notes";
-import NoteSettings from "@/components/ready-to-use-examples/note-settings";
+import GenerateNote from "@/components/ready-to-use-examples/generate-note";
 
 const inter = Inter({ 
   subsets: ['latin'],
@@ -54,7 +54,7 @@ export default function Page() {
           <p className="text-gray-600 mb-2 -mt-5">Generate and manage educational notes using AI, screen capture, and audio transcription</p>
           
           <div className="w-full max-w-4xl">
-            <NoteSettings />
+            <GenerateNote />
           </div>
 
           <div className="w-full max-w-4xl mt-8">
