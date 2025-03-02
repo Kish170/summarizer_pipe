@@ -3,122 +3,180 @@ import { ContentItem } from "@screenpipe/js";
 import { embed, generateObject } from "ai";
 import { ollama } from "ollama-ai-provider";
 import { z } from "zod";
-import { WorkLog } from "@/lib/types";
 import { Note } from "@/lib/types";
 import { pipe } from "@screenpipe/js";
+import fs from 'fs/promises';
 
-const workLog = z.object({
-    title: z.string(),
-    description: z.string(),
-    tags: z.array(z.string())
-});
 
 const note = z.object({
     title: z.string(),
     content: z.string(),
     tags: z.array(z.string())
 });
+const embProvider = ollama.embedding("nomic-embed-text");
 
-// might add audio data although it doesn't seem to be available with my system
+async function cleanOCRText(ocrText: string): Promise<string> {
+  const stopwords = await fs.readFile('lib/stopwords.txt', 'utf-8');
+  const stopwordsArray = new Set(stopwords.split('\n').map(word => word.trim().toLowerCase()).filter(Boolean)); 
+
+  return ocrText
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, "") 
+    .trim()
+    .split(/\s+/) 
+    .filter(word => !stopwordsArray.has(word)) 
+    .join(" "); 
+}
+
+function extractOCRText(items: ContentItem[]): string {
+  return items
+    .map(item => {
+      if (item.type === "OCR" && item.content && typeof item.content === "object" && "text" in item.content) {
+        return item.content.text;
+      }
+      return "";
+    })
+    .filter(text => text.trim().length > 0)
+    .join("\n\n");
+}
+
+async function chunkOCRText(ocrText: string, chunkSize: number = 1024): Promise<string[]> {
+  const words = ocrText.split(/\s+/); 
+  const chunks: string[] = [];
+
+  let currentChunk: string[] = [];
+  
+  for (const word of words) {
+    if (currentChunk.length < chunkSize) {
+      currentChunk.push(word);
+    } else {
+      chunks.push(currentChunk.join(" "));
+      currentChunk = [word];
+    }
+  }
+
+  if (currentChunk.length > 0) chunks.push(currentChunk.join(" "));
+  return chunks;
+}
+
+
+
 async function generateNote(
-    screenData: ContentItem[],
+    screenData: string,
     model: string,
     startTime: Date,
     endTime: Date,
     customPrompt: string,
   ): Promise<Note> {
   
-    const defaultPrompt = `You are analyzing screen recording data from Screenpipe to create educational notes. The data includes OCR text, audio transcriptions, and media files from learning activities.
-  
-      Based on the following screen data, generate a structured educational note with proper HTML formatting.
-  
-      Here are some user instructions:
-      ${customPrompt}
-  
-      Screen data: ${JSON.stringify(screenData)}
-      
-      Rules:
-      - Create clear, educational notes with proper structure and hierarchy
-      - Use appropriate HTML tags for formatting:
-        - <h1> for main title
-        - <h2>, <h3> for subtopics
-        - <p> for paragraphs
-        - <ul> and <li> for unordered lists
-        - <ol> and <li> for ordered lists/steps
-        - <code> for code snippets
-        - <blockquote> for important quotes
-        - <em> for emphasis
-        - <strong> for important terms
-      - Link to concepts using [[concept-name]]
-      - Add relevant educational tags
-      - Include key learning points and takeaways
-      - Structure content for easy review and reference
-      
-      Example outputs:
-      {
-          "title": "Introduction to Neural Networks",
-          "content": "<h1>Introduction to Neural Networks</h1>
-          <h2>Key Concepts</h2>
-          <p>Explored the fundamentals of [[neural-networks]] and their applications in [[machine-learning]].</p>
-          <h3>Basic Components</h3>
-          <ul>
-            <li><strong>Neurons</strong>: Basic processing units</li>
-            <li><strong>Weights</strong>: Connection strengths</li>
-            <li><strong>Activation Functions</strong>: Decision mechanisms</li>
-          </ul>
-          <h2>Implementation Example</h2>
-          <code>
-          def simple_neuron(inputs, weights):
-              return activation(sum(i * w for i, w in zip(inputs, weights)))
-          </code>",
-          "tags": ["#deep-learning", "#neural-networks", "#machine-learning"]
-      }
+    const defaultPrompt = `Create notes from this screen recording text that are relevant to the user's prompt: 
+    
+    ${screenData}
 
-      {
-          "title": "Data Structures: Binary Trees",
-          "content": "<h1>Data Structures: Binary Trees</h1>
-          <h2>Understanding Tree Traversal</h2>
-          <p>Deep dive into [[binary-tree]] traversal methods and their applications in [[algorithms]].</p>
-          <h3>Traversal Types</h3>
-          <ol>
-            <li><em>In-order</em>: Left, Root, Right</li>
-            <li><em>Pre-order</em>: Root, Left, Right</li>
-            <li><em>Post-order</em>: Left, Right, Root</li>
-          </ol>
-          <blockquote>Remember: The choice of traversal depends on the specific use case!</blockquote>",
-          "tags": ["#data-structures", "#algorithms", "#binary-trees"]
-      }
+    Instructions: ${customPrompt} 
 
-      Return a JSON object with:
-      {
-          "title": "Clear, topic-focused title",
-          "content": "HTML-formatted educational content with proper structure",
-          "tags": ["#relevant-topic", "#subject-area", "#learning-concept"]
-      }`;
+    Return JSON: {"title": "brief title", "content": "use <h1>,<h2>,<p>,<ul>,<li>,<code>,<em>,<strong>, [[concept]]", "tags": ["#tags"]}`;
   
     const provider = ollama(model);
-    const response = await generateObject({
-      model: provider,
-      messages: [{ role: "user", content: defaultPrompt }],
-      schema: note,
-    });
-  
-    const formatDate = (date: Date) => {
-      return date.toLocaleString("en-US", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
+
+    try {
+      const response = await generateObject({
+        model: provider,
+        messages: [{ role: "user", content: defaultPrompt }],
+        schema: note,
       });
-    };
+
+      return {
+        ...response.object,
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+      };
+    } catch (error: any) {
+      console.error('LLM generation error details:', {
+        message: error?.message,
+        modelUsed: model,
+        promptLength: defaultPrompt.length,
+        timestamp: new Date().toISOString()
+      });
+      
+      if (error?.message?.includes('Headers Timeout')) {
+        throw new Error('Note generation timed out. The text might be too long or the model is busy.');
+      }
+      
+      throw new Error(`Failed to generate note: ${error?.message || 'Unknown error'}`);
+    }
+}
+
+async function findTitle(titles: string[], customPrompt: string): Promise<string> {
+  let highestScore = 0;
+  let bestTitle = "";
+  const { embedding: promptEmbedding } = await embed({
+    model: embProvider,
+    value: customPrompt,
+  });
+
+  for (const title of titles) {
+    const { embedding: titleEmbedding } = await embed({
+      model: embProvider,
+      value: title,
+    });
+    const score = cosineSimilarity(promptEmbedding, titleEmbedding);
+      if (score > highestScore) {
+        highestScore = score;
+        bestTitle = title;
+    }
+  }
+  return bestTitle;
+}
+
+async function joinContents(contents: string[]): Promise<string> {
+  return contents.join("\n\n");
+}
+
+function getTopTags(tags: string[], limit: number = 4): string[] {
+  // Count frequency of each tag
+  const tagFrequency = tags.reduce((acc, tag) => {
+    acc[tag] = (acc[tag] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  // Sort tags by frequency and get top ones
+  return Object.entries(tagFrequency)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, limit)
+    .map(([tag]) => tag);
+}
+
+async function mergeNotes(notes: Note[], customPrompt: string): Promise<Note> {
+  if (notes.length === 0) {
+    throw new Error("Cannot merge empty notes array");
+  }
+
+  const contents: string[] = [];
+  const titles: string[] = [];
+  const tags: string[] = [];
+
+  // Get first note's startTime and last note's endTime
+  const startTime = notes[0].startTime;
+  const endTime = notes[notes.length - 1].endTime;
+
+  for (const note of notes) {
+    contents.push(note.content);
+    titles.push(note.title);
+    tags.push(...note.tags);
+  }
   
-    return {
-      ...response.object,
-      startTime: formatDate(startTime),
-      endTime: formatDate(endTime),
-    };
+  const title = await findTitle(titles, customPrompt);
+  const content = await joinContents(contents);
+  const topTags = getTopTags(tags);
+  
+  return {
+    title,
+    content,
+    tags: topTags,
+    startTime,
+    endTime
+  };
 }
 
 async function deduplicateScreenData(
@@ -127,7 +185,6 @@ async function deduplicateScreenData(
     if (!screenData.length) return screenData;
   
     try {
-      const provider = ollama.embedding("nomic-embed-text");
       const embeddings: number[][] = [];
       const uniqueData: ContentItem[] = [];
       let duplicatesRemoved = 0;
@@ -149,7 +206,7 @@ async function deduplicateScreenData(
   
         try {
             const { embedding } = await embed({
-                model: provider,
+                model: embProvider,
                 value: textToEmbed,
             });
     
@@ -211,7 +268,6 @@ export async function POST(request: Request) {
 
     let processedScreenData = screenData;
     
-    // Only deduplicate if enabled in settings
     if (deduplicationEnabled) {
       try {
         processedScreenData = await deduplicateScreenData(screenData);
@@ -219,16 +275,32 @@ export async function POST(request: Request) {
         console.warn("deduplication failed, continuing with original data:", error);
       }
     }
+    const cleanedScreenData = await cleanOCRText(extractOCRText(processedScreenData));
+    const chunks = await chunkOCRText(cleanedScreenData);
 
-    const note = await generateNote(
-      processedScreenData,
-      model,
-      new Date(startTime),
-      new Date(endTime),
-      customPrompt,
-    );
+    const notes = [];
+    const startTimeDate = new Date(startTime);
+    const endTimeDate = new Date(endTime);
 
-    return NextResponse.json({ note });
+    for (const chunk of chunks) {
+      const note = await generateNote(
+        chunk,
+        model,
+        startTimeDate,
+        endTimeDate,
+        customPrompt,
+      );
+      notes.push(note);
+    }
+
+    if (notes.length === 0) {
+      return NextResponse.json({ error: "Failed to generate any notes" }, { status: 400 });
+    }
+
+    const mergedNote = notes.length === 1 ? notes[0] : await mergeNotes(notes, customPrompt);
+
+    // No need to convert timestamps again since they're already in ISO format
+    return NextResponse.json({ note: mergedNote });
   } catch (error) {
     console.error("error generating work log:", error);
     return NextResponse.json({ error: "error generating work log" }, { status: 500 });

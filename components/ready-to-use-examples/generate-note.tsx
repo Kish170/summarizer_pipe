@@ -7,6 +7,8 @@ import {
   FileText,
   Play,
   Square,
+  Trash,
+  Trash2
 } from "lucide-react";
 import { useSettings } from "@/lib/settings-provider";
 import {
@@ -21,21 +23,7 @@ import { WorkLog, Note } from "@/lib/types";
 import { FileSuggestTextarea } from "@/components/file-suggest-textarea";
 import { Label } from "@/components/ui/label";
 import { FileCheck } from "lucide-react";
-
-
-// Define the database
-class NotesDB extends Dexie {
-  notes!: Dexie.Table<Note & { id: number }, number>;
-
-  constructor() {
-    super('NotesDB');
-    this.version(1).stores({
-      notes: '++id, title, content, startTime, endTime, *tags'
-    });
-  }
-}
-
-const db = new NotesDB();
+import { db } from "@/lib/db";
 
 export default function GenerateNote() {
   const [isLoading, setIsLoading] = useState(false);
@@ -82,16 +70,10 @@ export default function GenerateNote() {
       setIsLoading(true);
       const endTime = new Date();
       
-      // Calculate recording duration in minutes and adjust limit accordingly
-      const recordingDurationMinutes = (endTime.getTime() - recordingStartTime.current.getTime()) / (1000 * 60);
-      const eventsPerMinute = 100; // Adjust this based on average event frequency
-      const dynamicLimit = Math.max(100, Math.ceil(recordingDurationMinutes * eventsPerMinute));
-      
-      // Get all screen data since recording started
       const screenData = await pipe.queryScreenpipe({
         startTime: recordingStartTime.current.toISOString(),
         endTime: endTime.toISOString(),
-        limit: dynamicLimit,
+        limit: 1000,
         contentType: "all",
       });
 
@@ -99,10 +81,7 @@ export default function GenerateNote() {
         throw new Error("No screen data captured");
       }
 
-      const customPrompt = settings?.prompt || 
-        "Generate educational notes from the following screen activity, focusing on the OCR text content";
-
-      const response = await fetch(`/api/notes?customPrompt=${encodeURIComponent(customPrompt)}`, {
+      const response = await fetch(`/api/notes?customPrompt=${encodeURIComponent(customPrompt || "")}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -115,11 +94,14 @@ export default function GenerateNote() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create note from recording');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create note from recording');
       }
 
       const { note } = await response.json();
-      await db.notes.add(note);
+      
+      // Add the note to IndexedDB
+      const id = await db.notes.add(note);
       
       // Refresh notes list
       const updatedNotes = await db.notes.toArray();
@@ -212,11 +194,24 @@ export default function GenerateNote() {
                   <div className="text-xs text-gray-500">
                     {new Date(note.startTime).toLocaleString()} - {new Date(note.endTime).toLocaleString()}
                   </div>
-                  <div className="flex gap-1 mt-1">
+                  <div className="flex gap-2 mt-1 flex-wrap">
                     {note.tags.map((tag) => (
-                      <span key={tag} className="bg-gray-100 px-2 py-0.5 rounded-full text-xs">
-                        {tag}
-                      </span>
+                      <div key={tag} className="flex items-center gap-1">
+                        <span className="bg-gray-100 px-2 py-0.5 rounded-full text-xs">
+                          {tag}
+                        </span>
+                        <button 
+                          className="p-1 hover:bg-red-600 bg-red-500 text-white rounded-full"
+                          onClick={async () => {
+                            const updatedTags = note.tags.filter(t => t !== tag);
+                            await db.notes.update(note.id, { tags: updatedTags });
+                            const updatedNotes = await db.notes.toArray();
+                            setNotes(updatedNotes);
+                          }}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
                     ))}
                   </div>
                 </div>

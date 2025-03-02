@@ -11,6 +11,7 @@ import healthStatusContent from '../content/health-status-card.json';
 import { useEffect, useState } from "react";
 import { AIEducationalNotes } from "@/components/ready-to-use-examples/ai-educational-notes";
 import GenerateNote from "@/components/ready-to-use-examples/generate-note";
+import SearchNote from "@/components/ready-to-use-examples/search-note";
 
 const inter = Inter({ 
   subsets: ['latin'],
@@ -55,6 +56,7 @@ export default function Page() {
           
           <div className="w-full max-w-4xl">
             <GenerateNote />
+            <SearchNote />
           </div>
 
           <div className="w-full max-w-4xl mt-8">
