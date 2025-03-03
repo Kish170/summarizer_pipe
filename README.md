@@ -1,36 +1,44 @@
-# screenpipe playground
+# Ultimate Note Taker
 
-a flexible playground for displaying, testing, and exploring components with their associated code, documentation, and ai prompts.
+## Description
+Ultimate Note Taker is a powerful and user-friendly application designed to help you take, organize, and manage your notes efficiently. Whether you're a student, professional, or just someone who loves to jot down ideas, this tool is perfect for you. The inspiration from this project came from my own personal hurdle where I didn't like taking notes during lectures or watching videos or sometimes just in general. This hackathon with Screenpipe, an application that captures contextual data from laptops/desktops like screen data and speaker audio, helped me tackle this hurdle. Using Screenpipe's app and SDK I was capable of developing an ai-powered application that generates notes based on your OCR data or realtime audio. But that's not it you can summarize notes based on topics, and search or delete notes and export the notes as txt files. There is much more I would love to add to this project such as exporting to external document applications such as Google docs and Notion but automating the task through the click of a button. I wasn't able to get to this because Screenpipe hasn't added UI context capturing and input control to the Windows application. Nonetheless I am looking forward to it and everything else that Screenpipe aspires to build.
 
-<!-- <img width="1312" alt="screenshot of component playground" src="https://github.com/user-attachments/assets/3e5abd07-0a3c-4c3b-8351-5107beb4fb10"> -->
+## Tech Stack
+- **Frontend:** Next.js
+- **Backend:** Bun
+- **Database:** Dexie.js
+- **Styling:** Tailwind CSS, ShadCN
+- **Technologies:** Screenpipe
+- **AI Models:** GPT 4.o from ScreenPipe Cloud
 
-## features
+## Features
+- **AI-Generated Notes:** Used GPT 4.o to generate notes from OCR data or audio data
+- **Note-Management:** Used Dexie.js to store notes locally allowing for users to always have access to it locally
+- **Organization:** Notes are organized and categorized by tags
+- **Search & Filter Notes:** With a local database users can search notes by tags 
+- **No need for Authentication or Authorization:** Since it is all stored locally users data are safe with them and they no longer have to deal with authentication
+-**Summarizer:** Used GPT 4.o to generate a summarized note of all notes with the chosen tag
 
-- **interactive component display**: view rendered components in action
-- **code inspection**: examine the full source code of each component
-- **raw output**: see the raw api responses and data
-- **ai prompt visibility**: view the prompts and context used to generate components
-- **collapsible interface**: toggle component visibility for a cleaner workspace
+## How to Try It Out
+1. Clone the repository:
+    ```bash
+    git clone https://github.com/Kish170/summarizer_pipe
+    ```
+2. Navigate to the project directory:
+    ```bash
+    cd summarizer_pipe
+    ```
+3. Install dependencies:
+    ```bash
+    bun install
+    ```
+4. Start the development server:
+    ```bash
+    bun dev
+    ```
+5. Open your browser and go to `http://localhost:3000` to see the application in action.
 
-## usage
-
-the playground allows you to:
-
-1. view rendered components in their intended state
-2. inspect the raw output from api calls
-3. study the complete component code
-4. examine the ai prompts and context used to generate components
-
-## component structure
-
-each playground card includes:
-- component title and collapsible interface
-- tabs for different views (rendered output, raw output, code, ai prompt)
-- copy functionality for sharing prompts and context
-
-## getting started
-
-1. install this pipe from UI and play with it
-2. follow docs to create your pipe (it will create this app) (https://docs.screenpi.pe/docs/plugins)
-3. modify code from ready-to-use-examples directory
-
+## Credits
+- **Project Lead:** Kishan Rajagunathas
+- **Contributors:** ScreenPipe
+- **Special Thanks:** CEO of ScreenPipe, Louis Beaumont and CoFounder of ScreenPipe, Matthew Diakonow 

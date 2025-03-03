@@ -41,6 +41,7 @@ export default function SearchNote() {
     const [open, setOpen] = useState(false);
     const [value, setValue] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [added, setAdded] = useState(false);
     const [tags, setTags] = useState<string[]>([]);
     const [newNote, setNewNote] = useState<Note & { id: number } | null>(null);
     const { toast } = useToast();
@@ -108,6 +109,7 @@ export default function SearchNote() {
             // Add the note to IndexedDB
             await db.notes.add(note);
             setNewNote(note);
+            setAdded(true);
       
             toast({
               title: "Recording Processed",
