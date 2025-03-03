@@ -5,7 +5,8 @@ import {
   Loader2, 
   Play,
   Square,
-  Trash2
+  Trash2,
+  FileUp
 } from "lucide-react";
 import { useSettings } from "@/lib/settings-provider";
 import {
@@ -15,9 +16,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Popover,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { useToast } from "@/hooks/use-toast";
 import { Note } from "@/lib/types";
 import { FileSuggestTextarea } from "@/components/file-suggest-textarea";
+import Exports from "@/components/ready-to-use-examples/exports";
 import { Label } from "@/components/ui/label";
 import { FileCheck } from "lucide-react";
 import { db } from "@/lib/db";
@@ -30,45 +36,39 @@ export default function GenerateNote() {
   const { toast } = useToast();
   const [customPrompt, setCustomPrompt] = useState<string | null>("Generate notes based on OCR data");
   const [newNote, setNewNote] = useState<Note & { id: number } | null>(null);
-  const [added, setAdded] = useState(false);
-  const [tags, setTags] = useState<string[]>([]);
   const [notes, setNotes] = useState<(Note & { id: number })[]>([]);
   const [filteredNotes, setFilteredNotes] = useState<(Note & { id: number })[]>([]);
   const [value, setValue] = useState("");
 
-    useEffect(() => {
-        const fetchNotes = async () => {
-            const notes = await db.notes.toArray();
-            const allTags = notes.flatMap(note => note.tags);
-            const uniqueTags = Array.from(new Set(allTags));
-            setTags(uniqueTags);
-            setNotes(notes);
-        };
-        fetchNotes();
-    }, []);
+  useEffect(() => {
+    const fetchNotes = async () => {
+        const notes = await db.notes.toArray();
+        setNotes(notes);
+    };
+    fetchNotes();
+  }, []);
 
-    useEffect(() => {
-        if (value) {
-            const filtered = notes.filter(note => note.tags.includes(value));
-            setFilteredNotes(filtered);
-        } else {
-            setFilteredNotes([]);
-        }
-    }, [value, notes]);
-
-
-    const deleteNote = async (id: number) => {
-        try {
-            await db.notes.delete(id);
-            const noteExists = await db.notes.get(id);
-            console.log(noteExists ? "Note was not deleted" : "Note deleted successfully");
-            setNewNote(null)
-            setNotes(notes.filter(note => note.id !== id));
-            setFilteredNotes(filteredNotes.filter(note => note.id !== id));
-        } catch (error) {
-            console.error('Failed to delete note:', error);
-        }
+  useEffect(() => {
+    if (value) {
+        const filtered = notes.filter(note => note.tags.includes(value));
+        setFilteredNotes(filtered);
+    } else {
+        setFilteredNotes([]);
     }
+  }, [value, notes]);
+
+  const deleteNote = async (id: number) => {
+      try {
+          await db.notes.delete(id);
+          const noteExists = await db.notes.get(id);
+          console.log(noteExists ? "Note was not deleted" : "Note deleted successfully");
+          setNewNote(null)
+          setNotes(notes.filter(note => note.id !== id));
+          setFilteredNotes(filteredNotes.filter(note => note.id !== id));
+      } catch (error) {
+          console.error('Failed to delete note:', error);
+      }
+  }
 
   const startRecording = async () => {
     try {
@@ -134,7 +134,6 @@ export default function GenerateNote() {
       // Add the note to IndexedDB
       await db.notes.add(note);
       setNewNote(note);
-      setAdded(true);
 
       toast({
         title: "Recording Processed",
@@ -237,9 +236,12 @@ export default function GenerateNote() {
                     <Button onClick={() => deleteNote(newNote.id)} className="p-1 hover:bg-red-600 bg-red-500 text-white rounded-full" >
                         <Trash2 className="w-3 h-3" />
                     </Button>
-                    <Button variant="ghost">
-                        Export
-                    </Button>
+                    <Popover>
+                        <PopoverTrigger className="bg-black text-white rounded-3xl">
+                            <FileUp />
+                        </PopoverTrigger>
+                        <Exports note={newNote} />
+                    </Popover>
                 </div>
             </div>
           </div>}

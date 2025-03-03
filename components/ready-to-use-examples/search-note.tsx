@@ -3,14 +3,13 @@
 import { db } from "@/lib/db";
 import { useEffect, useState, useRef } from "react";
 import { cn } from "@/lib/utils"
-import { pipe } from "@screenpipe/browser";
 import { Button } from "@/components/ui/button";
 import { 
   Check,
   ChevronsUpDown,
-  Trash2
+  Trash2,
+  FileUp
 } from "lucide-react";
-import { useSettings } from "@/lib/settings-provider";
 import {
   Card,
   CardContent,
@@ -32,6 +31,7 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover"
 import { Note } from "@/lib/types";
+import Exports from "@/components/ready-to-use-examples/exports"
 
 
 export default function SearchNote() {
@@ -61,7 +61,6 @@ export default function SearchNote() {
         }
     }, [value, notes]);
 
-
     const deleteNote = async (id: number) => {
         try {
             await db.notes.delete(id);
@@ -73,18 +72,6 @@ export default function SearchNote() {
             console.error('Failed to delete note:', error);
         }
     }
-
-    const checker = async () => {
-        window.open("https://docs.google.com/", "_blank");
-        // await pipe.input.waitForSelector("div[aria-label='Blank']");
-        await pipe.sendDesktopNotification({
-            title: "meeting starting",
-            body: "your standup begins in 5 minutes",
-        })
-        
-
-     }
-   
 
     return (
         <Card>
@@ -164,9 +151,12 @@ export default function SearchNote() {
                                         <Button onClick={() => deleteNote(note.id)} className=" hover:bg-red-600 bg-red-500 text-white rounded-full" >
                                             <Trash2 className="m-0 w-3 h-3" />
                                         </Button>
-                                        <Button onClick={() => checker()} variant="ghost">
-                                            Export
-                                        </Button>
+                                        <Popover>
+                                            <PopoverTrigger className="bg-black text-white rounded-3xl">
+                                                <FileUp />
+                                            </PopoverTrigger>
+                                            <Exports note={note} />
+                                        </Popover>
                                     </div>
                                 </div>
                             ))}

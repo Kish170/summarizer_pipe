@@ -4,7 +4,7 @@ import { embed } from "ai";
 import { Note } from "@/lib/types";
 import { pipe } from "@screenpipe/js";
 import { ollama } from "ollama-ai-provider"; 
-import { OpenAI } from "openai"
+import { OpenAI } from "openai";
 
 const embProvider = ollama.embedding("nomic-embed-text");
 

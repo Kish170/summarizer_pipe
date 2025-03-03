@@ -1,16 +1,16 @@
 "use client"
 
 import { db } from "@/lib/db";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button";
 import { 
   Check,
   ChevronsUpDown,
   Trash2,
-  Loader2
+  Loader2,
+  FileUp
 } from "lucide-react";
-import { pipe } from "@screenpipe/browser"
 import {
   Card,
   CardContent,
@@ -32,7 +32,8 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover"
 import { Note } from "@/lib/types";
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/hooks/use-toast";
+import Exports from "@/components/ready-to-use-examples/exports";
 
 export default function SearchNote() {
     const [notes, setNotes] = useState<(Note & { id: number })[]>([]);
@@ -40,7 +41,6 @@ export default function SearchNote() {
     const [open, setOpen] = useState(false);
     const [value, setValue] = useState("");
     const [isLoading, setIsLoading] = useState(false);
-    const [added, setAdded] = useState(false);
     const [tags, setTags] = useState<string[]>([]);
     const [newNote, setNewNote] = useState<Note & { id: number } | null>(null);
     const { toast } = useToast();
@@ -108,7 +108,6 @@ export default function SearchNote() {
             // Add the note to IndexedDB
             await db.notes.add(note);
             setNewNote(note);
-            setAdded(true);
       
             toast({
               title: "Recording Processed",
@@ -126,14 +125,6 @@ export default function SearchNote() {
             setIsLoading(false);
           }
     }
-
-    // const checker = async () => {
-    //     window.open("https://docs.google.com/", "_blank");
-    //     // await pipe.input.waitForSelector("div[aria-label='Blank']");
-        
-
-    //  }
-   
 
     return (
         <Card>
@@ -222,9 +213,12 @@ export default function SearchNote() {
                                             <Button onClick={() => deleteNote(newNote.id)} className="p-1 hover:bg-red-600 bg-red-500 text-white rounded-full">
                                                 <Trash2 className="w-3 h-3" />
                                             </Button>
-                                            <Button variant="ghost">
-                                                Export
-                                            </Button>
+                                            <Popover>
+                                            <PopoverTrigger className="bg-black text-white rounded-3xl">
+                                                <FileUp />
+                                            </PopoverTrigger>
+                                            <Exports note={newNote} />
+                                        </Popover>
                                         </div>
                                     </div>
                                 </div>

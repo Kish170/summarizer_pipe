@@ -205,7 +205,6 @@ function cosineSimilarity(a: number[], b: number[]): number {
     return dotProduct / (normA * normB);
 }
 
-
 async function findTitle(titles: string[], customPrompt: string): Promise<string> {
   let highestScore = 0;
   let bestTitle = "";

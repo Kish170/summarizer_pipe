@@ -1,17 +1,13 @@
 "use client";
 
 import { SettingsProvider } from "@/lib/settings-provider";
-import { LastOcrImage } from "@/components/ready-to-use-examples/last-ocr-image";
-import { HealthStatus } from "@/components/ready-to-use-examples/health-status";
-import { LastUiRecord } from "@/components/ready-to-use-examples/last-ui-record";
-import { PlaygroundCard } from "@/components/playground-card";
 import { ClientOnly } from "@/lib/client-only";
 import { Inter } from "next/font/google";
-import healthStatusContent from '../content/health-status-card.json';
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import GenerateNote from "@/components/ready-to-use-examples/generate-note";
 import SearchNote from "@/components/ready-to-use-examples/search-note";
 import Summarizer from "@/components/ready-to-use-examples/export-summary";
+import { RealtimeAudio } from "@/components/ready-to-use-examples/realtime-audio";
 
 const inter = Inter({ 
   subsets: ['latin'],
@@ -19,36 +15,9 @@ const inter = Inter({
   variable: '--font-inter',
 });
 
-interface Pipe {
-  id: string;
-  name: string;
-  description: string;
-}
-
 export default function Page() {
-  const [pipes, setPipes] = useState<Pipe[]>([]);
-  const [loading, setLoading] = useState(true);
   const [activeComponent, setActiveComponent] = useState<string | null>('Generate Note');
 
-  // useEffect(() => {
-  //   fetch("https://screenpi.pe/api/plugins/registry")
-  //     .then((res) => res.json())
-  //     .then((data) => {
-  //       const transformedPipes = data.map((pipe: any) => ({
-  //         id: pipe.id,
-  //         name: pipe.name,
-  //         description: pipe.description?.split('\n')[0] || ''
-  //       }));
-  //       setPipes(transformedPipes);
-  //       setLoading(false);
-  //     })
-  //     .catch((error) => {
-  //       console.error("Error fetching pipes:", error);
-  //       setLoading(false);
-  //     });
-  // }, []);
-
-  // Function to handle component selection
   const handleComponentSelect = (componentName: string) => {
     setActiveComponent(componentName);
   };
@@ -62,6 +31,10 @@ export default function Page() {
         return <SearchNote />;
       case 'Summarizer':
         return <Summarizer />
+      case 'Last OCR Image':
+        return <RealtimeAudio />
+      case 'Audio Note':
+        return <RealtimeAudio />
       default:
         return <p className="text-gray-500 text-center p-4">Select a component from the menu below</p>;
     }
@@ -108,35 +81,15 @@ export default function Page() {
                   <p className="text-gray-600">Summarize your saved notes</p>
                 </button>
                 
-                {/* <button 
-                  onClick={() => handleComponentSelect('Health Status')}
-                  className={`p-4 rounded-lg border ${activeComponent === 'Health Status' ? 'bg-blue-100 border-blue-500' : 'bg-white hover:bg-gray-50'} text-left`}
+                <button 
+                  onClick={() => handleComponentSelect('Audio Note')}
+                  className={`p-4 rounded-lg border ${activeComponent === 'Audio Note' ? 'bg-blue-100 border-blue-500' : 'bg-white hover:bg-gray-50'} text-left`}
                 >
-                  <h3 className="font-semibold text-lg">Health Status</h3>
-                  <p className="text-gray-600">Check system health and connectivity</p>
-                </button> */}
+                  <h3 className="font-semibold text-lg">Generate Audio Notes</h3>
+                  <p className="text-gray-600">Generates notes based on RealtimeAudio</p>
+                </button>
               </div>
             </div>
-  {/*           
-            <div className="w-full max-w-4xl mt-8 font-mono">
-              <h2 className="text-xl font-semibold mb-4 text-left">open source pipes</h2>
-              <p className="mb-6 text-left text-gray-600">
-                # All pipes are open source and you can directly fork or reuse pipes or components.
-                # Source: <a href="https://github.com/mediar-ai/screenpipe/tree/main/pipes" className="text-blue-500 underline">https://github.com/mediar-ai/screenpipe/tree/main/pipes</a>
-              </p>
-              
-              {loading ? (
-                <p className="text-gray-500">Loading available pipes...</p>
-              ) : (
-                <div className="bg-gray-100 p-4 rounded w-full max-w-4xl text-sm border border-gray-200">
-                  {pipes.map((pipe, index) => (
-                    <div key={index} className="mb-2 last:mb-0">
-                      <span className="font-medium">[{index}]</span> <span className="font-semibold">{pipe.name}</span> - {pipe.description}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div> */}
           </div>
           
           <div className={`fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50 ${inter.className}`}>
@@ -160,18 +113,12 @@ export default function Page() {
                 >
                   Summarize Notes
                 </button>
-                {/* <button 
-                  onClick={() => handleComponentSelect('Health Status')}
-                  className={`px-4 py-2 rounded-md ${activeComponent === 'Health Status' ? 'bg-blue-500 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
-                >
-                  Health Status
-                </button>
                 <button 
-                  onClick={() => handleComponentSelect('Last OCR Image')}
-                  className={`px-4 py-2 rounded-md ${activeComponent === 'Last OCR Image' ? 'bg-blue-500 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
+                  onClick={() => handleComponentSelect('Audio Note')}
+                  className={`px-4 py-2 rounded-md ${activeComponent === 'Audio Note' ? 'bg-blue-500 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
                 >
-                  OCR Image
-                </button> */}
+                  Audio Notes
+                </button>
               </div>
             </div>
           </div>
