@@ -18,10 +18,8 @@ export function RealtimeScreen({ onDataChange }: { onDataChange?: (data: any, er
       setError(null);
       setIsStreaming(true);
       
-      // Add error handling for the analytics connection issue
       const originalConsoleError = console.error;
       console.error = function(msg, ...args) {
-        // Filter out the analytics connection errors
         if (typeof msg === 'string' && 
            (msg.includes('failed to fetch settings') || 
             msg.includes('ERR_CONNECTION_REFUSED'))) {

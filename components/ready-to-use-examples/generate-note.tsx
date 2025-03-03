@@ -1,13 +1,10 @@
-import Dexie from 'dexie';
 import { useEffect, useState, useRef } from "react";
 import { pipe } from "@screenpipe/browser";
 import { Button } from "@/components/ui/button";
 import { 
   Loader2, 
-  FileText,
   Play,
   Square,
-  Trash,
   Trash2
 } from "lucide-react";
 import { useSettings } from "@/lib/settings-provider";
@@ -19,26 +16,59 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { WorkLog, Note } from "@/lib/types";
+import { Note } from "@/lib/types";
 import { FileSuggestTextarea } from "@/components/file-suggest-textarea";
 import { Label } from "@/components/ui/label";
 import { FileCheck } from "lucide-react";
 import { db } from "@/lib/db";
 
 export default function GenerateNote() {
+  const { settings } = useSettings();
   const [isLoading, setIsLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
-  const [notes, setNotes] = useState<(Note & { id: number })[]>([]);
   const recordingStartTime = useRef<Date | null>(null);
   const { toast } = useToast();
-  const { settings, updateSettings, loading } = useSettings();
-  const [customPrompt, setCustomPrompt] = useState<string | null>(null);
+  const [customPrompt, setCustomPrompt] = useState<string | null>("Generate notes based on OCR data");
+  const [newNote, setNewNote] = useState<Note & { id: number } | null>(null);
+  const [added, setAdded] = useState(false);
+  const [tags, setTags] = useState<string[]>([]);
+  const [notes, setNotes] = useState<(Note & { id: number })[]>([]);
+  const [filteredNotes, setFilteredNotes] = useState<(Note & { id: number })[]>([]);
+  const [value, setValue] = useState("");
 
-  useEffect(() => {
-    if (settings) {
-      setCustomPrompt(settings.prompt || "");
+    useEffect(() => {
+        const fetchNotes = async () => {
+            const notes = await db.notes.toArray();
+            const allTags = notes.flatMap(note => note.tags);
+            const uniqueTags = Array.from(new Set(allTags));
+            setTags(uniqueTags);
+            setNotes(notes);
+        };
+        fetchNotes();
+    }, []);
+
+    useEffect(() => {
+        if (value) {
+            const filtered = notes.filter(note => note.tags.includes(value));
+            setFilteredNotes(filtered);
+        } else {
+            setFilteredNotes([]);
+        }
+    }, [value, notes]);
+
+
+    const deleteNote = async (id: number) => {
+        try {
+            await db.notes.delete(id);
+            const noteExists = await db.notes.get(id);
+            console.log(noteExists ? "Note was not deleted" : "Note deleted successfully");
+            setNewNote(null)
+            setNotes(notes.filter(note => note.id !== id));
+            setFilteredNotes(filteredNotes.filter(note => note.id !== id));
+        } catch (error) {
+            console.error('Failed to delete note:', error);
+        }
     }
-  }, [settings]);
 
   const startRecording = async () => {
     try {
@@ -90,6 +120,7 @@ export default function GenerateNote() {
           screenData: screenData.data,
           startTime: recordingStartTime.current.toISOString(),
           endTime: endTime.toISOString(),
+          settings: settings
         }),
       });
 
@@ -101,11 +132,9 @@ export default function GenerateNote() {
       const { note } = await response.json();
       
       // Add the note to IndexedDB
-      const id = await db.notes.add(note);
-      
-      // Refresh notes list
-      const updatedNotes = await db.notes.toArray();
-      setNotes(updatedNotes);
+      await db.notes.add(note);
+      setNewNote(note);
+      setAdded(true);
 
       toast({
         title: "Recording Processed",
@@ -125,6 +154,7 @@ export default function GenerateNote() {
       recordingStartTime.current = null;
     }
   };
+
 
   return (
     <Card>
@@ -183,41 +213,36 @@ export default function GenerateNote() {
             )}
           </div>
 
-          {/* Display existing notes */}
+          {newNote &&
           <div className="mt-4">
-            <h3 className="text-lg font-semibold">Stored Notes ({notes.length})</h3>
+            <h3 className="text-lg font-semibold">Recent Document/Note</h3>
             <div className="space-y-2">
-              {notes.map((note) => (
-                <div key={note.id} className="border p-2 rounded">
-                  <div className="font-medium">{note.title}</div>
-                  <div className="text-sm text-gray-600" dangerouslySetInnerHTML={{ __html: note.content }} />
+                <div key={newNote.id} className="border p-2 rounded">
+                  <div className="font-medium">{newNote.title}</div>
+                  <div className="text-sm text-gray-600" dangerouslySetInnerHTML={{ __html: newNote.content }} />
                   <div className="text-xs text-gray-500">
-                    {new Date(note.startTime).toLocaleString()} - {new Date(note.endTime).toLocaleString()}
+                    {new Date(newNote.startTime).toLocaleString()} - {new Date(newNote.endTime).toLocaleString()}
                   </div>
                   <div className="flex gap-2 mt-1 flex-wrap">
-                    {note.tags.map((tag) => (
-                      <div key={tag} className="flex items-center gap-1">
-                        <span className="bg-gray-100 px-2 py-0.5 rounded-full text-xs">
-                          {tag}
-                        </span>
-                        <button 
-                          className="p-1 hover:bg-red-600 bg-red-500 text-white rounded-full"
-                          onClick={async () => {
-                            const updatedTags = note.tags.filter(t => t !== tag);
-                            await db.notes.update(note.id, { tags: updatedTags });
-                            const updatedNotes = await db.notes.toArray();
-                            setNotes(updatedNotes);
-                          }}
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
+                  {newNote.tags.map((tag) => (
+                    <div key={tag} className="flex items-center gap-1">
+                      <span className="bg-gray-100 px-2 py-0.5 rounded-full text-xs">
+                        {tag}
+                      </span>
+                    </div>
+                  ))}
                   </div>
                 </div>
-              ))}
+                <div className="[&>*]:p-2 [&>*]:m-2">
+                    <Button onClick={() => deleteNote(newNote.id)} className="p-1 hover:bg-red-600 bg-red-500 text-white rounded-full" >
+                        <Trash2 className="w-3 h-3" />
+                    </Button>
+                    <Button variant="ghost">
+                        Export
+                    </Button>
+                </div>
             </div>
-          </div>
+          </div>}
         </div>
       </CardContent>
     </Card>

@@ -61,21 +61,18 @@ async function summarizeText(prompt: string): Promise<Note> {
 }
 
 async function generateNote(
-  screenData: string,
+  content: string,
   model: string,
   startTime: Date,
   endTime: Date,
-  customPrompt: string,
+  tag: string
 ): Promise<Note> {
 
-  const defaultPrompt = `You are analyzing screen recording data from Screenpipe to create educational notes. The data includes OCR text.
+  const defaultPrompt = `You are analyzing notes that were created from OCR data
   
-  Based on the following screen data, generate structured notes with proper HTML formatting.
+  Based on the following data, generate structured notes that summarizes all these notes with proper HTML formatting.
 
-  Here are some user instructions:
-  ${customPrompt}
-
-  Screen data: ${JSON.stringify(screenData)}
+  Screen data: ${JSON.stringify(content)}
   
   Rules:
   - Create clear, educational notes with proper structure and hierarchy
@@ -136,67 +133,6 @@ async function generateNote(
     throw new Error(`Failed to generate note: ${error?.message || "Unknown error"}`);
   }
 }
-
-async function deduplicateScreenData(
-    screenData: ContentItem[]
-  ): Promise<ContentItem[]> {
-    if (!screenData.length) return screenData;
-  
-    try {
-      const embeddings: number[][] = [];
-      const uniqueData: ContentItem[] = [];
-      let duplicatesRemoved = 0;
-  
-      for (const item of screenData) {
-        const textToEmbed =
-          "content" in item
-            ? typeof item.content === "string"
-              ? item.content
-              : "text" in item.content
-              ? item.content.text
-              : JSON.stringify(item.content)
-            : "";
-  
-        if (!textToEmbed.trim()) {
-            uniqueData.push(item);
-            continue;
-        }
-  
-        try {
-            const { embedding } = await embed({
-                model: embProvider,
-                value: textToEmbed,
-            });
-    
-            let isDuplicate = false;
-            for (let i = 0; i < embeddings.length; i++) {
-                const similarity = cosineSimilarity(embedding, embeddings[i]);
-                if (similarity > 0.95) {
-                isDuplicate = true;
-                duplicatesRemoved++;
-                break;
-                }
-            }
-    
-            if (!isDuplicate) {
-                embeddings.push(embedding);
-                uniqueData.push(item);
-            }
-            } catch (error) {
-                console.warn("embedding failed for item, keeping it:", error);
-                uniqueData.push(item);
-            }
-        }
-    
-        console.log(
-            `deduplication: removed ${duplicatesRemoved} duplicates from ${screenData.length} items`
-        );
-      return uniqueData;
-    } catch (error) {
-        console.warn("deduplication failed, using original data:", error);
-        return screenData;
-    }
-}
   
 function cosineSimilarity(a: number[], b: number[]): number {
     const dotProduct = a.reduce((sum, val, i) => sum + val * b[i], 0);
@@ -206,12 +142,12 @@ function cosineSimilarity(a: number[], b: number[]): number {
 }
 
 
-async function findTitle(titles: string[], customPrompt: string): Promise<string> {
+async function findTitle(titles: string[], tag: string): Promise<string> {
   let highestScore = 0;
   let bestTitle = "";
   const { embedding: promptEmbedding } = await embed({
     model: embProvider,
-    value: customPrompt,
+    value: tag,
   });
 
   for (const title of titles) {
@@ -246,7 +182,7 @@ function getTopTags(tags: string[], limit: number = 4): string[] {
     .map(([tag]) => tag);
 }
 
-async function mergeNotes(notes: Note[], customPrompt: string): Promise<Note> {
+async function mergeNotes(notes: Note[], tag: string): Promise<Note> {
   if (notes.length === 0) {
     throw new Error("Cannot merge empty notes array");
   }
@@ -265,7 +201,7 @@ async function mergeNotes(notes: Note[], customPrompt: string): Promise<Note> {
     tags.push(...note.tags);
   }
   
-  const title = await findTitle(titles, customPrompt);
+  const title = await findTitle(titles, tag);
   const content = await joinContents(contents);
   const topTags = getTopTags(tags);
   
@@ -278,12 +214,12 @@ async function mergeNotes(notes: Note[], customPrompt: string): Promise<Note> {
   };
 }
 
-async function processWithConcurrencyLimit(chunks:string[], model:string, startTime:Date, endTime:Date, customPrompt:string, limit = 3):Promise<Note[]> {
+async function processWithConcurrencyLimit(chunks:string[], model:string, startTime:Date, endTime:Date, tag:string, limit = 3):Promise<Note[]> {
   const results = [];
   for (let i = 0; i < chunks.length; i += limit) {
     const batch = chunks.slice(i, i + limit);
     const batchPromises = batch.map(chunk => 
-      generateNote(chunk, model, startTime, endTime, customPrompt)
+      generateNote(chunk, model, startTime, endTime, tag)
     );
     const batchResults = await Promise.all(batchPromises);
     results.push(...batchResults);
@@ -322,53 +258,31 @@ async function chunkOCRText(ocrText: string, chunkSize: number = 250000): Promis
 
 export async function POST(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    let customPrompt = searchParams.get("customPrompt");
     const body = await request.json();
-    const { screenData, startTime, endTime } = body;
-
-    if (!customPrompt) {
-      return NextResponse.json({ error: "customPrompt is required" }, { status: 400 });
-    }
-
-    if (!screenData) {
-      return NextResponse.json({ error: "screenData is required" }, { status: 400 });
-    }
+    const { startTime, endTime, tag, taggedNotes } = body;
 
     const csettings = await pipe.settings.getAll();
-    const deduplicationEnabled = csettings.customSettings?.deduplicationEnabled ?? true;
     const model = csettings.aiModel;
 
-    let processedScreenData = screenData;
-    
-    if (deduplicationEnabled) {
-      try {
-        processedScreenData = await deduplicateScreenData(screenData);
-      } catch (error) {
-        console.warn("deduplication failed, continuing with original data:", error);
-      }
-    }
-
-    const chunks = await chunkOCRText(extractOCRText(processedScreenData));
+    const chunks = await chunkOCRText(taggedNotes);
 
     const startTimeDate = new Date(startTime);
     const endTimeDate = new Date(endTime);
 
-    // Process chunks with controlled concurrency
     const notes = await processWithConcurrencyLimit(
       chunks, 
       model, 
       startTimeDate, 
       endTimeDate, 
-      customPrompt,
-      3  // Process 3 chunks at a time - adjust based on your testing
+      tag,
+      3  
     );
 
     if (notes.length === 0) {
       return NextResponse.json({ error: "Failed to generate any notes" }, { status: 400 });
     }
 
-    const mergedNote = notes.length === 1 ? notes[0] : await mergeNotes(notes, customPrompt);
+    const mergedNote = notes.length === 1 ? notes[0] : await mergeNotes(notes, tag);
 
     return NextResponse.json({ note: mergedNote })
   } catch (error) {
