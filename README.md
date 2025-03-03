@@ -19,6 +19,11 @@ Ultimate Note Taker is a powerful and user-friendly application designed to help
 - **No need for Authentication or Authorization:** Since it is all stored locally users data are safe with them and they no longer have to deal with authentication
 -**Summarizer:** Used GPT 4.o to generate a summarized note of all notes with the chosen tag
 
+## Future Progressions:
+- **Connect to External Note Applications:** When users click an export button automate using screenpipes currently experimental feature of UI context and input control
+- **Better Note Management:** Store it in an actual database and connect it using an ORM possibly Prisma with PostgreSQL
+- **Improve Interactivity:** Improve interactivity in screenpipes app by allowing to edit notes, train model on creating better notes and better present notes
+
 ## How to Try It Out
 1. Clone the repository:
     ```bash
@@ -36,7 +41,7 @@ Ultimate Note Taker is a powerful and user-friendly application designed to help
     ```bash
     bun dev
     ```
-5. Open your browser and go to `http://localhost:3000` to see the application in action.
+5. Open your browser and go to `http://localhost:3000` to see the application in action and let me know your thoughts!
 
 ## Credits
 - **Project Lead:** Kishan Rajagunathas
